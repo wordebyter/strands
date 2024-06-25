@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 1.2em;
+            min-width: 400px;
+            border: 1px solid #dddddd;
+        }
+        table tr {
+            background-color: #f3f3f3;
+            border: 1px solid #dddddd;
+        }
+        table th, table td {
+            padding: 12px 15px;
+            text-align: center;
+            border: 1px solid #dddddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Word Search</h1>
+    <table>
+        <tbody>
+            {% for row in grid %}
+            <tr>
+                {% for cell in row %}
+                <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h2>Find the following words:</h2>
+    <ul>
+        {% for word in words %}
+        <li>{{ word }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
