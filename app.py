@@ -15,31 +15,39 @@ def place_word_in_grid(grid, word):
     size = len(grid)
     word_length = len(word)
     placed = False
-    directions = ['horizontal', 'vertical', 'diagonal']
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]  # All possible directions
 
     while not placed:
-        direction = random.choice(directions)
-        if direction == 'horizontal':
-            row = random.randint(0, size - 1)
-            col = random.randint(0, size - word_length)
-            if all(grid[row][col + i] in ['', word[i]] for i in range(word_length)):
-                for i in range(word_length):
-                    grid[row][col + i] = word[i]
+        start_row = random.randint(0, size - 1)
+        start_col = random.randint(0, size - 1)
+        
+        if grid[start_row][start_col] == '':
+            grid[start_row][start_col] = word[0]
+            current_row, current_col = start_row, start_col
+            
+            for i in range(1, word_length):
+                random.shuffle(directions)
+                placed_letter = False
+                for dr, dc in directions:
+                    new_row, new_col = current_row + dr, current_col + dc
+                    if 0 <= new_row < size and 0 <= new_col < size and grid[new_row][new_col] in ['', word[i]]:
+                        grid[new_row][new_col] = word[i]
+                        current_row, current_col = new_row, new_col
+                        placed_letter = True
+                        break
+                if not placed_letter:
+                    break  # If we couldn't place the letter, break out of the loop
+
+            if placed_letter:
                 placed = True
-        elif direction == 'vertical':
-            row = random.randint(0, size - word_length)
-            col = random.randint(0, size - 1)
-            if all(grid[row + i][col] in ['', word[i]] for i in range(word_length)):
-                for i in range(word_length):
-                    grid[row + i][col] = word[i]
-                placed = True
-        elif direction == 'diagonal':
-            row = random.randint(0, size - word_length)
-            col = random.randint(0, size - word_length)
-            if all(grid[row + i][col + i] in ['', word[i]] for i in range(word_length)):
-                for i in range(word_length):
-                    grid[row + i][col + i] = word[i]
-                placed = True
+            else:
+                # Reset the part of the word placed so far
+                grid[start_row][start_col] = ''
+                for dr, dc in directions:
+                    new_row, new_col = start_row + dr, start_col + dc
+                    if 0 <= new_row < size and 0 <= new_col < size:
+                        if grid[new_row][new_col] == word[0]:
+                            grid[new_row][new_col] = ''
 
 def fill_empty_spaces(grid):
     for row in range(len(grid)):
@@ -50,9 +58,10 @@ def fill_empty_spaces(grid):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     size = 10
-    words = ['PYTHON', 'FLASK', 'GRID', 'SEARCH']
+    theme = "SLITHERY"
+    words = ['SLITHERY', 'ANACONDA', 'RATTLESNAKE', 'COTTONMOUTH', 'SNAKES']
     grid = generate_grid(size, words)
-    return render_template('index.html', grid=grid, words=words)
+    return render_template('index.html', grid=grid, words=words, theme=theme)
 
 if __name__ == '__main__':
     app.run(debug=True)

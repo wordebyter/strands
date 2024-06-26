@@ -20,27 +20,88 @@
             padding: 12px 15px;
             text-align: center;
             border: 1px solid #dddddd;
+            cursor: pointer;
+        }
+        .highlight {
+            background-color: yellow;
+        }
+        .found {
+            text-decoration: line-through;
         }
     </style>
 </head>
 <body>
     <h1>Word Search</h1>
-    <table>
+    <h2>Theme: {{ theme }}</h2>
+    <table id="word-search-grid">
         <tbody>
             {% for row in grid %}
             <tr>
                 {% for cell in row %}
-                <td>{{ cell }}</td>
+                <td onclick="selectCell(this)">{{ cell }}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    <h2>Find the following words:</h2>
-    <ul>
-        {% for word in words %}
-        <li>{{ word }}</li>
+    <h2>Find the following words related to the theme:</h2>
+    <ul id="word-list">
+        {% for word in words[:1] %}
+        <li id="word-{{ word }}">{{ word }}</li>
         {% endfor %}
     </ul>
+    <script>
+        let selectedCells = [];
+
+        function selectCell(cell) {
+            cell.classList.toggle('highlight');
+            const cellPosition = cell.parentElement.rowIndex + ',' + cell.cellIndex;
+            const index = selectedCells.indexOf(cellPosition);
+            if (index > -1) {
+                selectedCells.splice(index, 1);
+            } else {
+                selectedCells.push(cellPosition);
+            }
+            checkForWords();
+        }
+
+        function checkForWords() {
+            const grid = document.getElementById('word-search-grid');
+            const words = {{ words|tojson }};
+            const selectedWord = selectedCells.map(position => {
+                const [row, col] = position.split(',').map(Number);
+                return grid.rows[row].cells[col].innerText;
+            }).join('');
+
+            words.forEach(word => {
+                if (selectedWord.includes(word)) {
+                    document.getElementById('word-' + word).classList.add('found');
+                    markWordAsFound(word);
+                }
+            });
+        }
+
+        function markWordAsFound(word) {
+            const grid = document.getElementById('word-search-grid');
+            const cells = Array.from(grid.getElementsByTagName('td'));
+            cells.forEach(cell => {
+                if (cell.innerText === word[0]) {
+                    let match = true;
+                    for (let i = 0; i < word.length; i++) {
+                        const [row, col] = [cell.parentElement.rowIndex + i, cell.cellIndex];
+                        if (row >= grid.rows.length || grid.rows[row].cells[col].innerText !== word[i]) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) {
+                        for (let i = 0; i < word.length; i++) {
+                            grid.rows[cell.parentElement.rowIndex + i].cells[cell.cellIndex].classList.add('found');
+                        }
+                    }
+                }
+            });
+        }
+    </script>
 </body>
 </html>
