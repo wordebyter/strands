@@ -5,42 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Word Search Game</title>
     <style>
-        .found-letter {
-            background-color: #90EE90;  /* Light green background */
-            color: #006400;  /* Dark green text */
-        }
         .grid {
             display: grid;
-            grid-template-columns: repeat(10, 1fr);
+            grid-template-columns: repeat(8, 1fr);
             gap: 2px;
             width: 400px;
             margin-bottom: 20px;
         }
         .cell {
-            width: 38px;
-            height: 38px;
+            width: 48px;
+            height: 48px;
             border: 1px solid black;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 16px;
+            font-size: 20px;
             cursor: pointer;
             user-select: none;
         }
         .selected {
             background-color: #ffff99;
         }
+        .found-letter {
+            background-color: #90EE90;
+            color: #006400;
+        }
+        .theme-letter {
+            background-color: #ADD8E6;
+            color: #00008B;
+        }
         .found {
             text-decoration: line-through;
             color: #888;
+        }
+        .theme-word {
+            font-weight: bold;
+            color: #00008B;
         }
     </style>
 </head>
 <body>
     <h1>Word Search: {{ category }}</h1>
     <div class="grid">
-        {% for row in range(grid|length) %}
-            {% for col in range(grid[0]|length) %}
+        {% for row in range(6) %}
+            {% for col in range(8) %}
                 <div class="cell" data-x="{{ col }}" data-y="{{ row }}">{{ grid[row][col] }}</div>
             {% endfor %}
         {% endfor %}
@@ -51,32 +59,33 @@
     </div>
     <div id="result"></div>
     <h2>Words to Find:</h2>
-    <ul id="word-list">
-        {% for word in words %}
-            <li>{{ word }}</li>
-        {% endfor %}
-    </ul>
+    <ul id="word-list"></ul>
+    <p id="found-counter">Found 0/{{ words|length }} words</p>
 
     <script>
         let selectedCells = [];
+        let foundWords = 0;
+        const totalWords = {{ words|length }};
         const grid = document.querySelector('.grid');
-    
+        const themeWord = "{{ theme_word }}";
+        const wordsToFind = {{ words|tojson }};
+        const wordList = document.getElementById('word-list');
+        const foundCounter = document.getElementById('found-counter');
+
         grid.addEventListener('click', handleCellClick);
-    
+
         function handleCellClick(e) {
             if (e.target.classList.contains('cell')) {
                 toggleCellSelection(e.target);
             }
         }
-    
+
         function toggleCellSelection(cell) {
             const index = selectedCells.indexOf(cell);
             if (index > -1) {
-                // If cell is already selected, remove it and all subsequent cells
                 selectedCells.splice(index);
                 updateCellStyles();
             } else {
-                // If cell is not selected, add it if it's adjacent to the last selected cell or if it's the first cell
                 if (selectedCells.length === 0 || isAdjacent(selectedCells[selectedCells.length - 1], cell)) {
                     cell.classList.add('selected');
                     selectedCells.push(cell);
@@ -84,7 +93,7 @@
             }
             updateWordInput();
         }
-    
+
         function isAdjacent(cell1, cell2) {
             const x1 = parseInt(cell1.dataset.x);
             const y1 = parseInt(cell1.dataset.y);
@@ -92,16 +101,16 @@
             const y2 = parseInt(cell2.dataset.y);
             return Math.abs(x1 - x2) <= 1 && Math.abs(y1 - y2) <= 1;
         }
-    
+
         function updateCellStyles() {
             document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('selected'));
             selectedCells.forEach(cell => cell.classList.add('selected'));
         }
-    
+
         function updateWordInput() {
             document.getElementById('word-input').value = selectedCells.map(cell => cell.textContent).join('');
         }
-    
+
         function checkWord() {
             const word = document.getElementById('word-input').value.toUpperCase();
             fetch('/check_word', {
@@ -109,7 +118,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({word: word}),
+                body: JSON.stringify({ word: word, category: "{{ category }}" }),
             })
             .then(response => response.json())
             .then(data => {
@@ -117,8 +126,10 @@
                 if (data.valid) {
                     resultDiv.textContent = 'Correct!';
                     resultDiv.style.color = 'green';
-                    markWordAsFound(word);
-                    highlightFoundWord();
+                    highlightFoundWord(data.isTheme);
+                    addWordToList(word, data.isTheme);
+                    foundWords++;
+                    updateFoundCounter();
                 } else {
                     resultDiv.textContent = 'Try again!';
                     resultDiv.style.color = 'red';
@@ -126,33 +137,35 @@
                 clearSelection();
             });
         }
-    
+
         function clearSelection() {
             selectedCells.forEach(cell => cell.classList.remove('selected'));
             selectedCells = [];
             updateWordInput();
         }
-    
-        function markWordAsFound(word) {
-            const wordList = document.getElementById('word-list');
-            const items = wordList.getElementsByTagName('li');
-            for (let item of items) {
-                if (item.textContent === word) {
-                    item.classList.add('found');
-                    break;
-                }
-            }
-        }
-    
-        function highlightFoundWord() {
+
+        function highlightFoundWord(isTheme) {
             selectedCells.forEach(cell => {
-                cell.classList.add('found-letter');
+                cell.classList.add(isTheme ? 'theme-letter' : 'found-letter');
                 cell.classList.remove('selected');
             });
         }
-    
+
+        function addWordToList(word, isTheme) {
+            const li = document.createElement('li');
+            li.textContent = word;
+            li.classList.add('found');
+            if (isTheme) {
+                li.classList.add('theme-word');
+            }
+            wordList.appendChild(li);
+        }
+
+        function updateFoundCounter() {
+            foundCounter.textContent = `Found ${foundWords}/${totalWords} words`;
+        }
+
         function isGameComplete() {
-            const wordList = document.getElementById('word-list');
             const items = wordList.getElementsByTagName('li');
             return Array.from(items).every(item => item.classList.contains('found'));
         }
