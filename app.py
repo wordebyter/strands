@@ -1,67 +1,79 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import random
-import string
 
 app = Flask(__name__)
 
-def generate_grid(size, words):
-    grid = [['' for _ in range(size)] for _ in range(size)]
+# Your custom words and category
+CATEGORY = "Fruits"
+WORDS = ["APPLE", "BANANA", "CHERRY", "DURIAN", "ELDERBERRY", "ORANGE", "KIWI", "MANGO"]
+
+def place_word(grid, word):
+    size = len(grid)
+    directions = [
+        (0, 1),   # right
+        (1, 0),   # down
+        (1, 1),   # diagonal down-right
+        (-1, 1),  # diagonal up-right
+        (0, -1),  # left
+        (-1, 0),  # up
+        (-1, -1), # diagonal up-left
+        (1, -1)   # diagonal down-left
+    ]
+    
+    for _ in range(100):  # try 100 times to place the word
+        x = random.randint(0, size - 1)
+        y = random.randint(0, size - 1)
+        
+        if grid[y][x] == ' ' or grid[y][x] == word[0]:
+            path = [(y, x)]
+            for letter in word[1:]:
+                valid_moves = []
+                for dy, dx in directions:
+                    new_y, new_x = y + dy, x + dx
+                    if (0 <= new_y < size and 0 <= new_x < size and 
+                        (grid[new_y][new_x] == ' ' or grid[new_y][new_x] == letter) and
+                        (new_y, new_x) not in path):
+                        valid_moves.append((new_y, new_x))
+                
+                if not valid_moves:
+                    break
+                
+                y, x = random.choice(valid_moves)
+                path.append((y, x))
+            
+            if len(path) == len(word):
+                for i, (y, x) in enumerate(path):
+                    grid[y][x] = word[i]
+                return True
+    
+    return False
+
+def generate_grid(words, size=10):
+    grid = [[' ' for _ in range(size)] for _ in range(size)]
+    
     for word in words:
-        place_word_in_grid(grid, word)
-    fill_empty_spaces(grid)
+        if not place_word(grid, word):
+            print(f"Warning: Couldn't place '{word}'")
+    
+    # Fill empty spaces with random letters
+    for i in range(size):
+        for j in range(size):
+            if grid[i][j] == ' ':
+                grid[i][j] = random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    
     return grid
 
-def place_word_in_grid(grid, word):
-    size = len(grid)
-    word_length = len(word)
-    placed = False
-    directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]  # All possible directions
-
-    while not placed:
-        start_row = random.randint(0, size - 1)
-        start_col = random.randint(0, size - 1)
-        
-        if grid[start_row][start_col] == '':
-            grid[start_row][start_col] = word[0]
-            current_row, current_col = start_row, start_col
-            
-            for i in range(1, word_length):
-                random.shuffle(directions)
-                placed_letter = False
-                for dr, dc in directions:
-                    new_row, new_col = current_row + dr, current_col + dc
-                    if 0 <= new_row < size and 0 <= new_col < size and grid[new_row][new_col] in ['', word[i]]:
-                        grid[new_row][new_col] = word[i]
-                        current_row, current_col = new_row, new_col
-                        placed_letter = True
-                        break
-                if not placed_letter:
-                    break  # If we couldn't place the letter, break out of the loop
-
-            if placed_letter:
-                placed = True
-            else:
-                # Reset the part of the word placed so far
-                grid[start_row][start_col] = ''
-                for dr, dc in directions:
-                    new_row, new_col = start_row + dr, start_col + dc
-                    if 0 <= new_row < size and 0 <= new_col < size:
-                        if grid[new_row][new_col] == word[0]:
-                            grid[new_row][new_col] = ''
-
-def fill_empty_spaces(grid):
-    for row in range(len(grid)):
-        for col in range(len(grid[row])):
-            if grid[row][col] == '':
-                grid[row][col] = random.choice(string.ascii_uppercase)
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
-    size = 10
-    theme = "SLITHERY"
-    words = ['SLITHERY', 'ANACONDA', 'RATTLESNAKE', 'COTTONMOUTH', 'SNAKES']
-    grid = generate_grid(size, words)
-    return render_template('index.html', grid=grid, words=words, theme=theme)
+    grid = generate_grid(WORDS)
+    return render_template('game.html', grid=grid, category=CATEGORY, words=WORDS)
+
+@app.route('/check_word', methods=['POST'])
+def check_word():
+    word = request.json['word']
+    if word in WORDS:
+        return jsonify({"valid": True})
+    return jsonify({"valid": False})
 
 if __name__ == '__main__':
     app.run(debug=True)
